@@ -32,6 +32,15 @@ func (u unionMap) get(key string) (map[string]bool, bool) {
 	return v, ok
 }
 
+func (u unionMap) getSubkey(key, subKey string) (bool, bool) {
+	if u[key] == nil {
+		return false, false
+	}
+
+	v, ok := u[key][subKey]
+	return v, ok
+}
+
 func (u unionMap) printDebugState() {
 	println("=== Union Info Debug ===")
 	for key, subkeys := range u {

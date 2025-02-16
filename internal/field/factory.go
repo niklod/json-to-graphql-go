@@ -6,20 +6,35 @@ import (
 	"github.com/graphql-go/graphql"
 )
 
+type Config struct {
+	GQLObjectNamingFn func(key string) string
+	Resolver          Resolver
+}
+
 // DefaultFieldFactory is the default implementation.
 type DefaultFieldFactory struct {
 	unionInfo     unionMap
 	gqlTypesCache gqlTypesCache
-	jsonData      []byte
+	resolver      Resolver
+	objectNameFn  func(key string) string
 }
 
 // NewDefaultFieldFactory creates a new DefaultFieldFactory.
-func NewDefaultFieldFactory(data []byte) *DefaultFieldFactory {
+func NewDefaultFieldFactory(config Config) (*DefaultFieldFactory, error) {
+	if config.Resolver == nil {
+		return nil, ErrResolverNotProvided
+	}
+
+	if config.GQLObjectNamingFn == nil {
+		config.GQLObjectNamingFn = defaultObjectNamingFunciton
+	}
+
 	return &DefaultFieldFactory{
 		unionInfo:     make(unionMap),
 		gqlTypesCache: make(gqlTypesCache),
-		jsonData:      data,
-	}
+		objectNameFn:  config.GQLObjectNamingFn,
+		resolver:      config.Resolver,
+	}, nil
 }
 
 // CreateField dispatches field creation based on the type of JSON value.

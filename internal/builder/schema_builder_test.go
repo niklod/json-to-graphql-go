@@ -1,57 +1,65 @@
-package main
+package builder
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/graphql-go/graphql"
+	"github.com/niklod/json-to-graphql-go/cmd/staticdata/field"
+	"github.com/niklod/json-to-graphql-go/cmd/staticdata/resolver"
 	"github.com/stretchr/testify/assert"
 )
 
 // TestTierStatsUnion checks that tierStats union info includes lifesteal and ammo.
 func TestTierStatsUnion(t *testing.T) {
 	jsonData := `{
-		"items": [
-			{
-				"tierStats": [
-					{
-						"tier": "Silver",
-						"descriptions": ["Shield 5.", "Gain +1 Income."],
-						"cooldown": 3,
-						"multicast": 1,
-						"lifesteal": 1
-					},
-					{
-						"tier": "Gold",
-						"descriptions": ["Shield 10.", "Gain +2 Income."],
-						"cooldown": 3,
-						"multicast": 1,
-						"ammo": 12
-					}
-				]
-			}
-		]
-	}`
+        "items": [
+            {
+                "tierStats": [
+                    {
+                        "tier": "Silver",
+                        "descriptions": ["Shield 5.", "Gain +1 Income."],
+                        "cooldown": 3,
+                        "multicast": 1,
+                        "lifesteal": 1
+                    },
+                    {
+                        "tier": "Gold",
+                        "descriptions": ["Shield 10.", "Gain +2 Income."],
+                        "cooldown": 3,
+                        "multicast": 1,
+                        "ammo": 12
+                    }
+                ]
+            }
+        ]
+    }`
 
-	builder := NewGraphQLSchemaBuilder()
-	schema, rootData, err := builder.BuildSchema([]byte(jsonData))
+	factory, err := field.NewDefaultFieldFactory(field.Config{Resolver: resolver.NewJSONResolver([]byte(jsonData))})
+	builder := NewGraphQLSchemaBuilder(factory)
+
+	var j map[string]interface{}
+	err = json.Unmarshal([]byte(jsonData), &j)
+	assert.NoError(t, err, "JSON unmarshalling should not error")
+
+	schema, err := builder.BuildSchema(j)
 	assert.NoError(t, err, "Schema creation should not error")
 
 	query := `{ 
-		items {
-			tierStats {
-				tier
-				descriptions
-				cooldown
-				multicast
-				lifesteal
-				ammo
-			}
-		}
-	}`
+        items {
+            tierStats {
+                tier
+                descriptions
+                cooldown
+                multicast
+                lifesteal
+                ammo
+            }
+        }
+    }`
 	params := graphql.Params{
 		Schema:        *schema,
 		RequestString: query,
-		RootObject:    rootData,
 	}
 
 	result := graphql.Do(params)
@@ -82,15 +90,20 @@ func TestTierStatsUnion(t *testing.T) {
 func TestEmptySchema(t *testing.T) {
 	jsonData := `{}`
 
-	builder := NewGraphQLSchemaBuilder()
-	schema, rootData, err := builder.BuildSchema([]byte(jsonData))
+	factory, err := field.NewDefaultFieldFactory(field.Config{Resolver: resolver.NewJSONResolver([]byte(jsonData))})
+	builder := NewGraphQLSchemaBuilder(factory)
+
+	var j map[string]interface{}
+	err = json.Unmarshal([]byte(jsonData), &j)
+	assert.NoError(t, err, "JSON unmarshalling should not error")
+
+	schema, err := builder.BuildSchema(j)
 	assert.NoError(t, err, "Schema creation should not error for empty JSON")
 
 	query := `{ anyField }`
 	params := graphql.Params{
 		Schema:        *schema,
 		RequestString: query,
-		RootObject:    rootData,
 	}
 	result := graphql.Do(params)
 	assert.Empty(t, result.Errors, "GraphQL execution should not error")
@@ -102,24 +115,29 @@ func TestEmptySchema(t *testing.T) {
 // TestNestedObjects verifies that nested objects are handled correctly.
 func TestNestedObjects(t *testing.T) {
 	jsonData := `{
-		"user": {
-			"name": "John",
-			"address": {
-				"city": "New York",
-				"zip": 10001
-			}
-		}
-	}`
+        "user": {
+            "name": "John",
+            "address": {
+                "city": "New York",
+                "zip": 10001
+            }
+        }
+    }`
 
-	builder := NewGraphQLSchemaBuilder()
-	schema, rootData, err := builder.BuildSchema([]byte(jsonData))
+	factory, err := field.NewDefaultFieldFactory(field.Config{Resolver: resolver.NewJSONResolver([]byte(jsonData))})
+	builder := NewGraphQLSchemaBuilder(factory)
+
+	var j map[string]interface{}
+	err = json.Unmarshal([]byte(jsonData), &j)
+	assert.NoError(t, err, "JSON unmarshalling should not error")
+
+	schema, err := builder.BuildSchema(j)
 	assert.NoError(t, err, "Schema creation should not error")
 
 	query := `{ user { name address { city zip } } }`
 	params := graphql.Params{
 		Schema:        *schema,
 		RequestString: query,
-		RootObject:    rootData,
 	}
 
 	result := graphql.Do(params)
@@ -141,18 +159,23 @@ func TestNestedObjects(t *testing.T) {
 // TestMixedTypesInArray verifies that arrays with mixed types are handled correctly.
 func TestMixedTypesInArray(t *testing.T) {
 	jsonData := `{
-		"values": ["string", 123, true, {"key": "value"}]
-	}`
+        "values": ["string", 123, true, {"key": "value"}]
+    }`
 
-	builder := NewGraphQLSchemaBuilder()
-	schema, rootData, err := builder.BuildSchema([]byte(jsonData))
+	factory, err := field.NewDefaultFieldFactory(field.Config{Resolver: resolver.NewJSONResolver([]byte(jsonData))})
+	builder := NewGraphQLSchemaBuilder(factory)
+
+	var j map[string]interface{}
+	err = json.Unmarshal([]byte(jsonData), &j)
+	assert.NoError(t, err, "JSON unmarshalling should not error")
+
+	schema, err := builder.BuildSchema(j)
 	assert.NoError(t, err, "Schema creation should not error")
 
 	query := `{ values }`
 	params := graphql.Params{
 		Schema:        *schema,
 		RequestString: query,
-		RootObject:    rootData,
 	}
 
 	result := graphql.Do(params)
@@ -169,18 +192,23 @@ func TestMixedTypesInArray(t *testing.T) {
 // TestEmptyArray verifies that empty arrays are handled correctly.
 func TestEmptyArray(t *testing.T) {
 	jsonData := `{
-		"items": []
-	}`
+        "items": []
+    }`
 
-	builder := NewGraphQLSchemaBuilder()
-	schema, rootData, err := builder.BuildSchema([]byte(jsonData))
+	factory, err := field.NewDefaultFieldFactory(field.Config{Resolver: resolver.NewJSONResolver([]byte(jsonData))})
+	builder := NewGraphQLSchemaBuilder(factory)
+
+	var j map[string]interface{}
+	err = json.Unmarshal([]byte(jsonData), &j)
+	assert.NoError(t, err, "JSON unmarshalling should not error")
+
+	schema, err := builder.BuildSchema(j)
 	assert.NoError(t, err, "Schema creation should not error")
 
 	query := `{ items }`
 	params := graphql.Params{
 		Schema:        *schema,
 		RequestString: query,
-		RootObject:    rootData,
 	}
 
 	result := graphql.Do(params)
@@ -189,36 +217,41 @@ func TestEmptyArray(t *testing.T) {
 	data, ok := result.Data.(map[string]interface{})
 	assert.True(t, ok, "Result data should be a map")
 
-	items, ok := data["items"].([]interface{})
-	assert.True(t, ok, "Items should be a list")
-	assert.Equal(t, 0, len(items), "There should be 0 items")
+	items, ok := data["items"]
+	assert.True(t, ok, "Items should be presented")
+	assert.Nil(t, items, "Items should be nil")
 }
 
 // TestComplexNestedStructures verifies that complex nested structures are handled correctly.
 func TestComplexNestedStructures(t *testing.T) {
 	jsonData := `{
-		"user": {
-			"name": "John",
-			"address": {
-				"city": "New York",
-				"zip": 10001
-			},
-			"friends": [
-				{"name": "Alice", "age": 25},
-				{"name": "Bob", "age": 30}
-			]
-		}
-	}`
+        "user": {
+            "name": "John",
+            "address": {
+                "city": "New York",
+                "zip": 10001
+            },
+            "friends": [
+                {"name": "Alice", "age": 25},
+                {"name": "Bob", "age": 30}
+            ]
+        }
+    }`
 
-	builder := NewGraphQLSchemaBuilder()
-	schema, rootData, err := builder.BuildSchema([]byte(jsonData))
+	factory, err := field.NewDefaultFieldFactory(field.Config{Resolver: resolver.NewJSONResolver([]byte(jsonData))})
+	builder := NewGraphQLSchemaBuilder(factory)
+
+	var j map[string]interface{}
+	err = json.Unmarshal([]byte(jsonData), &j)
+	assert.NoError(t, err, "JSON unmarshalling should not error")
+
+	schema, err := builder.BuildSchema(j)
 	assert.NoError(t, err, "Schema creation should not error")
 
 	query := `{ user { name address { city zip } friends { name age } } }`
 	params := graphql.Params{
 		Schema:        *schema,
 		RequestString: query,
-		RootObject:    rootData,
 	}
 
 	result := graphql.Do(params)
@@ -252,46 +285,51 @@ func TestComplexNestedStructures(t *testing.T) {
 // TestItemStatsUnion verifies that item stats union info includes all possible attributes.
 func TestItemStatsUnion(t *testing.T) {
 	jsonData := `{
-		"items": [
-			{
-				"name": "item1",
-				"price": 100,
-				"stat": {
-					"name": "fire",
-					"level": 5,
-					"value": 50
-				}
-			},
-			{
-				"name": "item2",
-				"price": 200,
-				"stat": {
-					"name": "ice",
-					"level": 3,
-					"resist": 20
-				}
-			},
-			{
-				"name": "item2",
-				"price": 200,
-				"stat": {
-					"name": "ice",
-					"level": 3,
-					"block": 200
-				}
-			}
-		]
-	}`
+        "items": [
+            {
+                "name": "item1",
+                "price": 100,
+                "stat": {
+                    "name": "fire",
+                    "level": 5,
+                    "value": 50
+                }
+            },
+            {
+                "name": "item2",
+                "price": 200,
+                "stat": {
+                    "name": "ice",
+                    "level": 3,
+                    "resist": 20
+                }
+            },
+            {
+                "name": "item2",
+                "price": 200,
+                "stat": {
+                    "name": "ice",
+                    "level": 3,
+                    "block": 200
+                }
+            }
+        ]
+    }`
 
-	builder := NewGraphQLSchemaBuilder()
-	schema, rootData, err := builder.BuildSchema([]byte(jsonData))
+	factory, err := field.NewDefaultFieldFactory(field.Config{Resolver: resolver.NewJSONResolver([]byte(jsonData))})
+	builder := NewGraphQLSchemaBuilder(factory)
+
+	var j map[string]interface{}
+	err = json.Unmarshal([]byte(jsonData), &j)
+	assert.NoError(t, err, "JSON unmarshalling should not error")
+
+	schema, err := builder.BuildSchema(j)
 	assert.NoError(t, err, "Schema creation should not error")
 
 	query := `{ items { name price stat { name level value resist block } } }`
 	params := graphql.Params{
 		Schema:        *schema,
 		RequestString: query,
-		RootObject:    rootData,
 	}
 
 	result := graphql.Do(params)

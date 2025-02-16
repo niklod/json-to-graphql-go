@@ -1,25 +1,20 @@
-package main
+package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"time"
 
 	"github.com/graphql-go/graphql"
 )
 
-// SchemaBuilder builds a GraphQL schema from JSON.
 type SchemaBuilder interface {
-	BuildSchema(jsonData []byte) (*graphql.Schema, map[string]interface{}, error)
+	BuildSchema(jsonData map[string]interface{}) (*graphql.Schema, error)
 }
 
 type GraphQLHandler struct {
 	schemaBuilder SchemaBuilder
 	schema        *graphql.Schema
-	staticData    *map[string]interface{}
 }
 
 func NewGraphQLHandler(
@@ -28,6 +23,10 @@ func NewGraphQLHandler(
 	return &GraphQLHandler{
 		schemaBuilder: schemaBuilder,
 	}
+}
+
+func (h *GraphQLHandler) UpdateSchema(schema *graphql.Schema) {
+	h.schema = schema
 }
 
 func (h *GraphQLHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -63,33 +62,4 @@ func (h *GraphQLHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}
-}
-
-func (h *GraphQLHandler) RefreshSchema() error {
-	data, err := os.ReadFile("./cmd/staticdata/data.json")
-	if err != nil {
-		return fmt.Errorf("failed to read data.json: %w", err)
-	}
-
-	schema, staticData, err := h.schemaBuilder.BuildSchema(data)
-	if err != nil {
-		return err
-	}
-
-	h.schema = schema
-	h.staticData = &staticData
-	log.Println("GraphQL schema successfully refreshed")
-
-	return nil
-}
-
-func (h *GraphQLHandler) StartAutoRefresh() {
-	go func() {
-		for {
-			if err := h.RefreshSchema(); err != nil {
-				log.Printf("failed to refresh schema: %v", err)
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}()
 }

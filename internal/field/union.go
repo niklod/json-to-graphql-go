@@ -67,7 +67,7 @@ func (f *DefaultFieldFactory) GatherUnionObjectInfo(data map[string]interface{})
 				_, isObj := valueIsObject(subVal)
 				if isObj || !f.unionInfo.subkeyExists(key, subKey) {
 					f.unionInfo.setSubkey(key, subKey, isObj)
-					f.unionInfo.printDebugState()
+					// f.unionInfo.printDebugState()
 				}
 			}
 		}

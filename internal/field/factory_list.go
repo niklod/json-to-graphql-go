@@ -1,11 +1,7 @@
 package field
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/graphql-go/graphql"
-	"github.com/tidwall/gjson"
 )
 
 // createListField function is responsible for creating a GraphQL field that represents an array (graphql.List).
@@ -26,25 +22,8 @@ func (f *DefaultFieldFactory) createListField(key string, arr []interface{}, dep
 	elementField := f.CreateField(key, arr[0], depth+1)
 
 	return &graphql.Field{
-		Type: graphql.NewList(elementField.Type),
-		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-			var key string
-			for i, k := range p.Info.Path.AsArray() {
-				if i > 0 {
-					key += "."
-				}
-				key += fmt.Sprintf("%v", k)
-			}
-
-			data := gjson.Get(string(f.jsonData), key)
-
-			result := []interface{}{}
-			json.Unmarshal([]byte(data.Raw), &result)
-
-			// fmt.Println("list resolved", key, result)
-
-			return result, nil
-		},
+		Type:    graphql.NewList(elementField.Type),
+		Resolve: f.resolver.ResolveArrayValue,
 	}
 }
 
@@ -60,22 +39,7 @@ func (f *DefaultFieldFactory) createListFieldForMaps(key string, arrObjects []ma
 	listType := graphql.NewList(mergedField.Type)
 
 	return &graphql.Field{
-		Type: listType,
-		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-			var key string
-			for i, k := range p.Info.Path.AsArray() {
-				if i > 0 {
-					key += "."
-				}
-				key += fmt.Sprintf("%v", k)
-			}
-
-			data := gjson.Get(string(f.jsonData), key)
-
-			result := []interface{}{}
-			json.Unmarshal([]byte(data.Raw), &result)
-
-			return result, nil
-		},
+		Type:    listType,
+		Resolve: f.resolver.ResolveArrayValue,
 	}
 }
