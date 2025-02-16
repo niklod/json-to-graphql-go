@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/graphql-go/graphql"
-	"github.com/niklod/json-to-graphql-go/cmd/staticdata/field"
-	"github.com/niklod/json-to-graphql-go/cmd/staticdata/resolver"
+	"github.com/niklod/json-to-graphql-go/internal/field"
+	"github.com/niklod/json-to-graphql-go/pkg/resolver"
 	"github.com/stretchr/testify/assert"
 )
 
