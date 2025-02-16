@@ -160,20 +160,7 @@ func (f *DefaultFieldFactory) createObjectField(key string, m map[string]interfa
 		return &graphql.Field{Type: cached}
 	}
 	// Build union of keys: from the current object and unionInfo.
-	keysSet := make(map[string]bool)
-	for k := range m {
-		keysSet[k] = true
-	}
-	if info, exists := f.unionInfo[key]; exists {
-		for subKey := range info {
-			keysSet[subKey] = true
-		}
-	}
-	var keys []string
-	for k := range keysSet {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	keys := f.mergeKeys(key, m)
 	fields := graphql.Fields{}
 	for _, k := range keys {
 		var subVal interface{}
@@ -195,6 +182,25 @@ func (f *DefaultFieldFactory) createObjectField(key string, m map[string]interfa
 	return &graphql.Field{Type: objType}
 }
 
+// mergeKeys merges keys from the current object and union info.
+func (f *DefaultFieldFactory) mergeKeys(key string, m map[string]interface{}) []string {
+	keysSet := make(map[string]bool)
+	for k := range m {
+		keysSet[k] = true
+	}
+	if info, exists := f.unionInfo[key]; exists {
+		for subKey := range info {
+			keysSet[subKey] = true
+		}
+	}
+	var keys []string
+	for k := range keysSet {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // createListField creates a list field for a JSON array.
 // For arrays of objects, it merges union defaults and uses a custom resolver.
 func (f *DefaultFieldFactory) createListField(key string, arr []interface{}, depth int) *graphql.Field {
@@ -202,24 +208,24 @@ func (f *DefaultFieldFactory) createListField(key string, arr []interface{}, dep
 		return &graphql.Field{Type: graphql.NewList(graphql.String)}
 	}
 	if ok, arrMaps := allMaps(arr); ok {
-		var mapsSlice []map[string]interface{}
-
-		for _, elem := range arrMaps {
-			mapsSlice = append(mapsSlice, elem.(map[string]interface{}))
-		}
-
-		mergedDefaults := mergeMaps(mapsSlice)
-		mergedField := f.CreateField(key, mergedDefaults, depth+1)
-		listType := graphql.NewList(mergedField.Type)
-
-		return &graphql.Field{
-			Type: listType,
-		}
+		return f.createListFieldForMaps(key, arrMaps, depth)
 	}
-
 	elementField := f.CreateField(key, arr[0], depth+1)
-
 	return &graphql.Field{Type: graphql.NewList(elementField.Type)}
+}
+
+// createListFieldForMaps creates a list field for an array of maps.
+func (f *DefaultFieldFactory) createListFieldForMaps(key string, arrMaps []interface{}, depth int) *graphql.Field {
+	var mapsSlice []map[string]interface{}
+	for _, elem := range arrMaps {
+		mapsSlice = append(mapsSlice, elem.(map[string]interface{}))
+	}
+	mergedDefaults := mergeMaps(mapsSlice)
+	mergedField := f.CreateField(key, mergedDefaults, depth+1)
+	listType := graphql.NewList(mergedField.Type)
+	return &graphql.Field{
+		Type: listType,
+	}
 }
 
 // ----------------------------------------------------------------------
