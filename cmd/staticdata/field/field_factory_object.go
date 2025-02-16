@@ -8,34 +8,39 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-// createObjectField creates an object field for a JSON object,
-// merging keys from the current object with union info (using bare key).
-func (f *DefaultFieldFactory) createObjectField(key string, m map[string]interface{}, depth int) *graphql.Field {
+// createObjectField is responsible for dynamically constructing a GraphQL object field from a given JSON structure.
+// What it does:
+//   - Checks if the GraphQL type is already cached (to avoid redundant type creation).
+//   - Collects all possible keys for the object (including inconsistencies).
+//   - Iterates over all discovered keys to create corresponding GraphQL fields.
+//   - Stores the generated type in the cache for future use.
+//   - Defines a Resolve function that dynamically fetches JSON data at runtime.
+func (f *DefaultFieldFactory) createObjectField(key string, inputObj map[string]interface{}, depth int) *graphql.Field {
 	typeName := key + "Object"
-	if cached, ok := f.typeCache[typeName]; ok {
+	if cached, ok := f.gqlTypesCache.get(typeName); ok {
 		return &graphql.Field{Type: cached}
 	}
 
-	// Build union of keys: from the current object and unionInfo.
-	keys := f.mergeKeys(key, m)
+	// collecting all possible field names for the object, including:
+	//  - Keys from inputObj.
+	//  - Keys from f.unionInfo, which contains inconsistencies observed in previous objects.
+	mergedKeySet := f.mergeKeys(key, inputObj)
+
 	fields := graphql.Fields{}
-
-	// Iterate over keys to create fields.
-	for _, k := range keys {
-
+	for _, key := range mergedKeySet {
 		var subVal interface{}
 
 		// If the key is present in the current object, use it.
-		if val, ok := m[k]; ok {
+		if val, ok := inputObj[key]; ok {
 			subVal = val
-		} else if info, exists := f.unionInfo[key]; exists && info[k] {
+		} else if info, exists := f.unionInfo.get(key); exists && info[key] {
 			// Force missing subfields to be objects.
 			subVal = map[string]interface{}{}
 		} else {
 			subVal = nil
 		}
 
-		fields[k] = f.CreateField(k, subVal, depth+1)
+		fields[key] = f.CreateField(key, subVal, depth+1)
 	}
 
 	objType := graphql.NewObject(graphql.ObjectConfig{
@@ -44,7 +49,7 @@ func (f *DefaultFieldFactory) createObjectField(key string, m map[string]interfa
 	},
 	)
 
-	f.typeCache[typeName] = objType
+	f.gqlTypesCache.set(typeName, objType)
 
 	return &graphql.Field{
 		Type: objType,
@@ -62,7 +67,7 @@ func (f *DefaultFieldFactory) createObjectField(key string, m map[string]interfa
 			result := map[string]interface{}{}
 			json.Unmarshal([]byte(data.Raw), &result)
 
-			fmt.Println("object resolved", key, result)
+			// fmt.Println("object resolved", key, result)
 
 			return result, nil
 		},

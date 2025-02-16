@@ -36,7 +36,7 @@ func (f *DefaultFieldFactory) createScalarField(value interface{}) *graphql.Fiel
 
 			result := data.Value()
 
-			fmt.Println("scalar resolved", key, result)
+			// fmt.Println("scalar resolved", key, result)
 
 			return result, nil
 		},
