@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/graphql-go/graphql"
+	"github.com/niklod/json-to-graphql-go/cmd/staticdata/field"
 )
 
 // FieldFactory creates GraphQL fields from JSON values.
@@ -28,7 +29,7 @@ func NewGraphQLSchemaBuilder() SchemaBuilder {
 // BuildSchema parses JSON, gathers union info, and builds the GraphQL schema.
 func (b *GraphQLSchemaBuilder) BuildSchema(jsonData []byte) (*graphql.Schema, map[string]interface{}, error) {
 	// Update factory's with new json
-	b.fieldFactory = NewDefaultFieldFactory(jsonData)
+	b.fieldFactory = field.NewDefaultFieldFactory(jsonData)
 
 	// Reset internal caches for each update
 	b.fieldFactory.ResetCache()
