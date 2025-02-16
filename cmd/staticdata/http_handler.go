@@ -11,6 +11,11 @@ import (
 	"github.com/graphql-go/graphql"
 )
 
+// SchemaBuilder builds a GraphQL schema from JSON.
+type SchemaBuilder interface {
+	BuildSchema(jsonData []byte) (*graphql.Schema, map[string]interface{}, error)
+}
+
 type GraphQLHandler struct {
 	schemaBuilder SchemaBuilder
 	schema        *graphql.Schema
@@ -45,7 +50,6 @@ func (h *GraphQLHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	result := graphql.Do(graphql.Params{
 		Schema:        *h.schema,
 		RequestString: params.Query,
-		RootObject:    *h.staticData,
 	})
 
 	if len(result.Errors) > 0 {
